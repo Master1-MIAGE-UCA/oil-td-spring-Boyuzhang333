@@ -1,3 +1,181 @@
+# README.md
+
+## Description
+Ce projet est une application Spring Boot pour gérer les lancés de dés. L'application permet de :
+- Lancer un ou plusieurs dés et sauvegarder les résultats dans une base de données.
+- Consulter l'historique des lancés.
+- Utiliser Swagger pour documenter les endpoints.
+- Simplifier le code avec Lombok.
+
+---
+
+## Prérequis
+1. **Java** : JDK 11 ou version ultérieure.
+2. **Maven ou Gradle** : Pour la gestion des dépendances.
+3. **IDE** : IntelliJ IDEA, Eclipse ou autre.
+4. **Postman ou cURL** : Pour tester les endpoints REST.
+
+---
+
+## Étapes réalisées
+
+### 1. Création du projet Spring Boot
+- Utilisation de Spring Initializr pour générer un projet.
+- Ajout des dépendances suivantes :
+  - Spring Web
+  - Spring Data JPA
+  - H2 Database
+
+### 2. Configuration du projet
+- Configuration du port dans le fichier `application.properties` :
+  ```properties
+  server.port=8081
+  spring.h2.console.enabled=true
+  spring.h2.console.path=/h2-console
+  spring.datasource.url=jdbc:h2:mem:testdb
+  spring.datasource.driverClassName=org.h2.Driver
+  spring.datasource.username=sa
+  spring.datasource.password=
+  spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+  ```
+
+### 3. Création de l'entité DiceRollLog
+- Entité JPA comprenant les champs suivants :
+  - `id` : Identifiant unique (généré automatiquement).
+  - `diceCount` : Nombre de dés lancés.
+  - `results` : Liste des résultats obtenus (collection).
+  - `timestamp` : Date et heure du lancé.
+
+**Code :**
+```java
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class DiceRollLog {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private int diceCount;
+
+    @ElementCollection
+    private List<Integer> results;
+
+    private LocalDateTime timestamp;
+}
+```
+
+### 4. Création du Repository
+- Interface héritant de `JpaRepository` pour gérer les interactions avec la base de données.
+```java
+public interface DiceRollLogRepository extends JpaRepository<DiceRollLog, Long> {
+}
+```
+
+### 5. Création du Service
+- Service marqué avec `@Service` contenant la logique métier pour :
+  - Générer les résultats des lancés.
+  - Sauvegarder les résultats dans la base de données.
+
+**Code :**
+```java
+@Service
+public class DiceRollService {
+
+    private final DiceRollLogRepository repository;
+    private final Random random = new Random();
+
+    @Autowired
+    public DiceRollService(DiceRollLogRepository repository) {
+        this.repository = repository;
+    }
+
+    public List<Integer> rollDiceAndSave(int count) {
+        List<Integer> results = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            results.add(random.nextInt(6) + 1);
+        }
+        saveLog(count, results);
+        return results;
+    }
+
+    private void saveLog(int count, List<Integer> results) {
+        DiceRollLog log = new DiceRollLog(count, results, LocalDateTime.now());
+        repository.save(log);
+    }
+}
+```
+
+### 6. Création du Contrôleur
+- Contrôleur REST pour exposer les endpoints :
+  - `GET /api/rollDice` : Lancer un seul dé.
+  - `GET /api/rollDices/{X}` : Lancer X dés.
+  - `GET /api/diceLogs` : Afficher l'historique des lancés.
+
+**Code :**
+```java
+@RestController
+@RequestMapping("/api")
+public class DiceRollController {
+
+    private final DiceRollService diceRollService;
+
+    @Autowired
+    public DiceRollController(DiceRollService diceRollService) {
+        this.diceRollService = diceRollService;
+    }
+
+    @GetMapping("/rollDice")
+    public List<Integer> rollSingleDice() {
+        return diceRollService.rollDiceAndSave(1);
+    }
+
+    @GetMapping("/rollDices/{count}")
+    public List<Integer> rollMultipleDice(@PathVariable int count) {
+        return diceRollService.rollDiceAndSave(count);
+    }
+
+    @GetMapping("/diceLogs")
+    public List<DiceRollLog> getAllDiceLogs() {
+        return diceRollService.getAllLogs();
+    }
+}
+```
+
+### 7. Intégration de Swagger
+- Ajout de la dépendance Swagger :
+  ```xml
+  <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-ui</artifactId>
+      <version>1.7.0</version>
+  </dependency>
+  ```
+- Accès à la documentation interactive via : `http://localhost:8081/swagger-ui.html`.
+
+### 8. Simplification avec Lombok
+- Utilisation des annotations :
+  - `@Data` : Génération automatique des getters, setters, `toString`, etc.
+  - `@NoArgsConstructor` : Génération d'un constructeur sans arguments.
+  - `@AllArgsConstructor` : Génération d'un constructeur avec tous les arguments.
+
+---
+
+## Exécution et Test
+1. **Démarrer l'application** :
+   ```bash
+   ./mvnw spring-boot:run
+   ```
+2. **Tester les endpoints** :
+  - `GET /api/rollDice` : Retourne un résultat aléatoire pour un dé.
+  - `GET /api/rollDices/{count}` : Retourne les résultats pour plusieurs dés.
+  - `GET /api/diceLogs` : Retourne l'historique des lancés au format JSON.
+3. **Consulter Swagger** : Accédez à `http://localhost:8081/swagger-ui.html` pour visualiser la documentation interactive.
+4. **Accéder à H2 Console** : Accédez à `http://localhost:8081/h2-console` pour interagir avec la base de données.
+
+
 [![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/WCHp-cRl)
 # Projet "Dice" - Gestion de lancés de dés avec Spring Boot
 
@@ -72,3 +250,4 @@ Le projet "Dice" est une application construite avec Spring Boot permettant de s
 - **Base de données** : H2 
 - **Documentation API** : Swagger (bonus)
 - **Simplification de code** : Lombok (bonus)
+
